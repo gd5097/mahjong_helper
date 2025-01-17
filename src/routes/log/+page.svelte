@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { players } from '../../stores/players';
 	import { writable } from 'svelte/store';
 
 	const initialScore = 25000;
@@ -7,6 +6,7 @@
 	type Position = 'east' | 'south' | 'west' | 'north';
 	type Scores = Record<Position, number>;
 
+	// 점수 상태
 	let scores = writable<Scores>({
 		east: initialScore,
 		south: initialScore,
@@ -14,7 +14,15 @@
 		north: initialScore
 	});
 
+	const playersList: Record<Position, string> = {
+		east: 'ㄱ',
+		south: 'ㄴ',
+		west: 'ㄷ',
+		north: 'ㄹ'
+	};
+
 	const modalOpen = writable(false);
+	const tenpaiModalOpen = writable(false); // 유국 모달 상태
 	let selectedPlayer: Position | null = null; // 화료한 사람
 	let mode: '론' | '쯔모' | null = null; // 화료 방식
 	let excludedPlayers: Position[] = []; // 방총자 선택 시 제외할 플레이어
@@ -23,10 +31,11 @@
 	let childScore = ''; // 쯔모 방식: 코 점수
 	let selectedRonPlayer: Position | null = null; // 방총자 선택
 	let selectedParent: Position | null = null; // 오야 선택
+	let tenpaiPlayers: Position[] = []; // 텐파이인 플레이어 목록
 
 	function openModal(player: Position) {
 		selectedPlayer = player;
-		excludedPlayers = (Object.keys($scores) as Position[]).filter((p) => p !== player);
+		excludedPlayers = (Object.keys(playersList) as Position[]).filter((p) => p !== player);
 		modalOpen.set(true);
 	}
 
@@ -38,6 +47,15 @@
 		selectedParent = null;
 	}
 
+	function openTenpaiModal() {
+		tenpaiPlayers = [];
+		tenpaiModalOpen.set(true);
+	}
+
+	function closeTenpaiModal() {
+		tenpaiModalOpen.set(false);
+	}
+
 	function updateScores() {
 		scores.update((currentScores) => {
 			const ronPoints = Number(ronScore) || 0;
@@ -45,16 +63,10 @@
 			const childPoints = Number(childScore) || 0;
 
 			if (mode === '론' && selectedRonPlayer && selectedPlayer) {
-				// 론: 방총자 점수 차감, 화료한 사람 점수 증가
 				currentScores[selectedRonPlayer] -= ronPoints;
 				currentScores[selectedPlayer] += ronPoints;
-
-				console.log(`방총자(${selectedRonPlayer}) 점수: ${currentScores[selectedRonPlayer]}`);
-				console.log(`화료자(${selectedPlayer}) 점수: ${currentScores[selectedPlayer]}`);
-				console.log(`론 점수: ${ronPoints}`);
 			} else if (mode === '쯔모' && selectedPlayer) {
 				if (selectedPlayer === selectedParent) {
-					// 쯔모: 화료한 사람이 오야인 경우
 					const totalPoints = parentPoints * 3;
 					Object.keys(currentScores).forEach((key) => {
 						const positionKey = key as Position;
@@ -64,22 +76,17 @@
 							currentScores[positionKey] -= parentPoints;
 						}
 					});
-
-					console.log(`쯔모(오야) 점수 업데이트 완료`);
 				} else if (selectedParent) {
-					// 쯔모: 오야가 화료한 사람이 아닌 경우
 					Object.keys(currentScores).forEach((key) => {
 						const positionKey = key as Position;
 						if (positionKey === selectedParent) {
-							currentScores[positionKey] -= parentPoints; // 오야 점수 차감
+							currentScores[positionKey] -= parentPoints;
 						} else if (positionKey === selectedPlayer) {
-							currentScores[positionKey] += parentPoints + childPoints * 2; // 화료한 사람 점수 증가
+							currentScores[positionKey] += parentPoints + childPoints * 2;
 						} else {
-							currentScores[positionKey] -= childPoints; // 다른 사람 점수 차감
+							currentScores[positionKey] -= childPoints;
 						}
 					});
-
-					console.log(`쯔모(비오야) 점수 업데이트 완료`);
 				}
 			}
 			return currentScores;
@@ -87,8 +94,31 @@
 		closeModal();
 	}
 
-	$: playersList = $players;
-	$: currentScores = $scores;
+	function updateTenpaiScores() {
+		scores.update((currentScores) => {
+			const numTenpai = tenpaiPlayers.length;
+
+			if (numTenpai === 0 || numTenpai === 4) {
+				console.log('유국 정보만 기록됨');
+				return currentScores;
+			}
+
+			const tenpaiPoints = numTenpai === 1 ? 3000 : numTenpai === 2 ? 1500 : 1000;
+			const nonTenpaiPoints = numTenpai === 1 ? 1000 : numTenpai === 2 ? 1500 : 3000;
+
+			Object.keys(currentScores).forEach((key) => {
+				const positionKey = key as Position;
+				if (tenpaiPlayers.includes(positionKey)) {
+					currentScores[positionKey] += tenpaiPoints;
+				} else {
+					currentScores[positionKey] -= nonTenpaiPoints;
+				}
+			});
+
+			return currentScores;
+		});
+		closeTenpaiModal();
+	}
 </script>
 
 <main class="flex min-h-screen flex-col items-center bg-gray-100">
@@ -107,7 +137,7 @@
 
 	<!-- 화료한 사람 버튼 -->
 	<div class="flex space-x-4">
-		{#each Object.keys($scores) as position}
+		{#each Object.keys(playersList) as position}
 			<button
 				class="rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
 				on:click={() => openModal(position as Position)}
@@ -117,7 +147,64 @@
 		{/each}
 	</div>
 
-	<!-- 모달 -->
+	<!-- 유국 버튼 -->
+	<div class="mt-6">
+		<button
+			class="rounded-lg bg-yellow-500 px-4 py-2 text-white hover:bg-yellow-600"
+			on:click={openTenpaiModal}
+		>
+			유국
+		</button>
+	</div>
+
+	<!-- 유국 모달 -->
+	{#if $tenpaiModalOpen}
+		<div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+			<div class="w-full max-w-lg rounded-lg bg-white p-8 shadow-md">
+				<h2 class="mb-4 text-lg font-bold">유국 정보 입력</h2>
+
+				<h3 class="text-md mb-2 font-semibold">텐파이</h3>
+				<div class="mb-4 flex space-x-4">
+					{#each Object.keys(playersList) as position}
+						<button
+							class={`rounded-lg px-4 py-2 ${
+								tenpaiPlayers.includes(position as Position)
+									? 'bg-green-500 text-white'
+									: 'bg-gray-300 hover:bg-gray-400'
+							}`}
+							on:click={() => {
+								const pos = position as Position;
+								if (tenpaiPlayers.includes(pos)) {
+									tenpaiPlayers = tenpaiPlayers.filter((p) => p !== pos);
+								} else {
+									tenpaiPlayers = [...tenpaiPlayers, pos];
+								}
+							}}
+						>
+							{playersList[position as Position]}
+						</button>
+					{/each}
+				</div>
+
+				<div class="flex justify-end space-x-4">
+					<button
+						class="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+						on:click={closeTenpaiModal}
+					>
+						취소
+					</button>
+					<button
+						class="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+						on:click={updateTenpaiScores}
+					>
+						확인
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- 화료 모달 -->
 	{#if $modalOpen}
 		<div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
 			<div class="w-full max-w-lg rounded-lg bg-white p-8 shadow-md">
