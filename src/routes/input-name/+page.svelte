@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { players } from '../../stores/players'; // 참가자 이름을 관리하는 store import
+  import { players } from '../../lib/stores/players'; // 참가자 이름을 관리하는 store import
   import { goto } from '$app/navigation'; // 페이지 이동을 위한 SvelteKit 기능 import
 
   function handleNext() {

@@ -1,327 +1,120 @@
 <script lang="ts">
-	import { writable } from 'svelte/store';
-
-	const initialScore = 25000;
-
-	type Position = 'east' | 'south' | 'west' | 'north';
-	type Scores = Record<Position, number>;
-
-	// 점수 상태
-	let scores = writable<Scores>({
-		east: initialScore,
-		south: initialScore,
-		west: initialScore,
-		north: initialScore
-	});
-
-	const playersList: Record<Position, string> = {
-		east: 'ㄱ',
-		south: 'ㄴ',
-		west: 'ㄷ',
-		north: 'ㄹ'
-	};
-
-	const modalOpen = writable(false);
-	const tenpaiModalOpen = writable(false); // 유국 모달 상태
-	let selectedPlayer: Position | null = null; // 화료한 사람
-	let mode: '론' | '쯔모' | null = null; // 화료 방식
-	let excludedPlayers: Position[] = []; // 방총자 선택 시 제외할 플레이어
-	let ronScore = ''; // 론 방식 점수
-	let parentScore = ''; // 쯔모 방식: 오야 점수
-	let childScore = ''; // 쯔모 방식: 코 점수
-	let selectedRonPlayer: Position | null = null; // 방총자 선택
-	let selectedParent: Position | null = null; // 오야 선택
-	let tenpaiPlayers: Position[] = []; // 텐파이인 플레이어 목록
-
-	function openModal(player: Position) {
-		selectedPlayer = player;
-		excludedPlayers = (Object.keys(playersList) as Position[]).filter((p) => p !== player);
-		modalOpen.set(true);
+	import { players } from '../../lib/stores/players';
+	import { scores, potScore, richPlayers } from '../../lib/stores/scores';
+	import ScoreBoard from '../../lib/components/ScoreBoard.svelte';
+	import WinModal from '../../lib/components/WinModal.svelte';
+	import RichModal from '../../lib/components/RichModal.svelte';
+	import TenpaiModal from '$lib/components/TenpaiModal.svelte';
+	import type { Position } from '../../lib/stores/scores';
+  
+	let winModalOpen = false;
+	let richModalOpen = false;
+	let tenpaiModalOpen = false;
+	let selectedPlayer: Position | null = null;
+  
+	// 모달에서 필요한 상태 값
+	let mode: '론' | '쯔모' | null = null;
+	let ronScore = '';
+	let parentScore = '';
+	let childScore = '';
+	let selectedRonPlayer: Position | null = null;
+	let selectedParent: Position | null = null;
+  
+	function openWinModal(player: Position) {
+	  selectedPlayer = player;
+	  winModalOpen = true;
 	}
-
-	function closeModal() {
-		modalOpen.set(false);
-		selectedPlayer = null;
-		mode = null;
-		selectedRonPlayer = null;
-		selectedParent = null;
+  
+	function closeWinModal() {
+	  winModalOpen = false;
+	  selectedPlayer = null;
+  
+	  // 모달 상태 초기화
+	  mode = null;
+	  ronScore = '';
+	  parentScore = '';
+	  childScore = '';
+	  selectedRonPlayer = null;
+	  selectedParent = null;
+	}
+  
+	function openRichModal() {
+	  richModalOpen = true;
+	}
+  
+	function closeRichModal() {
+	  richModalOpen = false;
 	}
 
 	function openTenpaiModal() {
-		tenpaiPlayers = [];
-		tenpaiModalOpen.set(true);
+	  tenpaiModalOpen = true;
 	}
 
 	function closeTenpaiModal() {
-		tenpaiModalOpen.set(false);
+	  tenpaiModalOpen = false;
 	}
-
-	function updateScores() {
-		scores.update((currentScores) => {
-			const ronPoints = Number(ronScore) || 0;
-			const parentPoints = Number(parentScore) || 0;
-			const childPoints = Number(childScore) || 0;
-
-			if (mode === '론' && selectedRonPlayer && selectedPlayer) {
-				currentScores[selectedRonPlayer] -= ronPoints;
-				currentScores[selectedPlayer] += ronPoints;
-			} else if (mode === '쯔모' && selectedPlayer) {
-				if (selectedPlayer === selectedParent) {
-					const totalPoints = parentPoints * 3;
-					Object.keys(currentScores).forEach((key) => {
-						const positionKey = key as Position;
-						if (positionKey === selectedPlayer) {
-							currentScores[positionKey] += totalPoints;
-						} else {
-							currentScores[positionKey] -= parentPoints;
-						}
-					});
-				} else if (selectedParent) {
-					Object.keys(currentScores).forEach((key) => {
-						const positionKey = key as Position;
-						if (positionKey === selectedParent) {
-							currentScores[positionKey] -= parentPoints;
-						} else if (positionKey === selectedPlayer) {
-							currentScores[positionKey] += parentPoints + childPoints * 2;
-						} else {
-							currentScores[positionKey] -= childPoints;
-						}
-					});
-				}
-			}
-			return currentScores;
-		});
-		closeModal();
-	}
-
-	function updateTenpaiScores() {
-		scores.update((currentScores) => {
-			const numTenpai = tenpaiPlayers.length;
-
-			if (numTenpai === 0 || numTenpai === 4) {
-				console.log('유국 정보만 기록됨');
-				return currentScores;
-			}
-
-			const tenpaiPoints = numTenpai === 1 ? 3000 : numTenpai === 2 ? 1500 : 1000;
-			const nonTenpaiPoints = numTenpai === 1 ? 1000 : numTenpai === 2 ? 1500 : 3000;
-
-			Object.keys(currentScores).forEach((key) => {
-				const positionKey = key as Position;
-				if (tenpaiPlayers.includes(positionKey)) {
-					currentScores[positionKey] += tenpaiPoints;
-				} else {
-					currentScores[positionKey] -= nonTenpaiPoints;
-				}
-			});
-
-			return currentScores;
-		});
-		closeTenpaiModal();
-	}
-</script>
-
-<main class="flex min-h-screen flex-col items-center bg-gray-100">
-	<!-- 점수 표시 -->
-	<div class="mb-8 grid grid-cols-2 gap-4">
-		{#each Object.entries(playersList) as [position, name]}
-			<div class="flex flex-col items-center">
-				<span class="text-lg font-semibold">{name}</span>
-				<span class="text-xl font-bold text-blue-500">{$scores[position as Position]}점</span>
-			</div>
+  </script>
+  
+  <main class="flex flex-col items-center min-h-screen bg-gray-100">
+	<h1 class="mb-6 text-xl font-bold">로그 페이지</h1>
+  
+	<!-- 점수판 컴포넌트 -->
+	<ScoreBoard playersList={$players} />
+  
+	<!-- 공탁 및 리치 정보 -->
+	<div class="mt-6 mb-4 flex flex-col items-center">
+	  <p class="text-lg font-semibold">공탁: {$potScore}점</p>
+	  <p class="text-lg font-semibold">
+		리치:
+		{#each $richPlayers as player}
+		  <span class="text-blue-500 font-bold">{$players[player]}</span>
 		{/each}
+	  </p>
 	</div>
-
-	<!-- 화료 텍스트 -->
-	<h2 class="mb-4 text-lg font-bold text-gray-800">화료</h2>
-
-	<!-- 화료한 사람 버튼 -->
+  
+	
+  
+	<!-- 화료 버튼 -->
+	<h2 class="mt-6 mb-4 text-lg font-bold">화료</h2>
 	<div class="flex space-x-4">
-		{#each Object.keys(playersList) as position}
-			<button
-				class="rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-				on:click={() => openModal(position as Position)}
-			>
-				{playersList[position as Position]}
-			</button>
-		{/each}
-	</div>
-
-	<!-- 유국 버튼 -->
-	<div class="mt-6">
+	  {#each Object.keys($players) as position}
 		<button
-			class="rounded-lg bg-yellow-500 px-4 py-2 text-white hover:bg-yellow-600"
-			on:click={openTenpaiModal}
+		  class="rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+		  on:click={() => openWinModal(position as Position)}
 		>
-			유국
+		  {$players[position as Position]}
 		</button>
+	  {/each}
 	</div>
+  
+	<!-- 화료 모달 -->
+	{#if winModalOpen}
+	  <WinModal
+		playersList={$players}
+		selectedPlayer={selectedPlayer}
+		closeModal={closeWinModal}
+		mode={mode}
+		ronScore={ronScore}
+		parentScore={parentScore}
+		childScore={childScore}
+		selectedRonPlayer={selectedRonPlayer}
+		selectedParent={selectedParent}
+	  />
+	{/if}
+  
+	<!-- 유국 버튼 -->
+	<div class="mt-4">
+		<button
+		  class="rounded-lg bg-yellow-500 px-4 py-2 text-white hover:bg-yellow-600"
+		  on:click={openTenpaiModal}
+		>
+		  유국
+		</button>
+	  </div>
 
 	<!-- 유국 모달 -->
-	{#if $tenpaiModalOpen}
-		<div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-			<div class="w-full max-w-lg rounded-lg bg-white p-8 shadow-md">
-				<h2 class="mb-4 text-lg font-bold">유국 정보 입력</h2>
-
-				<h3 class="text-md mb-2 font-semibold">텐파이</h3>
-				<div class="mb-4 flex space-x-4">
-					{#each Object.keys(playersList) as position}
-						<button
-							class={`rounded-lg px-4 py-2 ${
-								tenpaiPlayers.includes(position as Position)
-									? 'bg-green-500 text-white'
-									: 'bg-gray-300 hover:bg-gray-400'
-							}`}
-							on:click={() => {
-								const pos = position as Position;
-								if (tenpaiPlayers.includes(pos)) {
-									tenpaiPlayers = tenpaiPlayers.filter((p) => p !== pos);
-								} else {
-									tenpaiPlayers = [...tenpaiPlayers, pos];
-								}
-							}}
-						>
-							{playersList[position as Position]}
-						</button>
-					{/each}
-				</div>
-
-				<div class="flex justify-end space-x-4">
-					<button
-						class="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600"
-						on:click={closeTenpaiModal}
-					>
-						취소
-					</button>
-					<button
-						class="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
-						on:click={updateTenpaiScores}
-					>
-						확인
-					</button>
-				</div>
-			</div>
-		</div>
+	{#if tenpaiModalOpen}
+	  <TenpaiModal playersList={$players} closeModal={closeTenpaiModal} />
 	{/if}
-
-	<!-- 화료 모달 -->
-	{#if $modalOpen}
-		<div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-			<div class="w-full max-w-lg rounded-lg bg-white p-8 shadow-md">
-				<h2 class="mb-4 text-lg font-bold">
-					화료 정보 입력 {playersList[selectedPlayer!] || ''}
-				</h2>
-
-				<!-- 화료 방식 -->
-				<div class="mb-4 flex space-x-4">
-					<button
-						class={`rounded-lg px-4 py-2 ${
-							mode === '론' ? 'bg-green-500 text-white' : 'bg-gray-300 hover:bg-gray-400'
-						}`}
-						on:click={() => (mode = '론')}
-					>
-						론
-					</button>
-					<button
-						class={`rounded-lg px-4 py-2 ${
-							mode === '쯔모' ? 'bg-green-500 text-white' : 'bg-gray-300 hover:bg-gray-400'
-						}`}
-						on:click={() => (mode = '쯔모')}
-					>
-						쯔모
-					</button>
-				</div>
-
-				<!-- 론 방식 -->
-				{#if mode === '론'}
-					<h3 class="text-md mb-2 font-semibold">방총자</h3>
-					<div class="mb-4 flex space-x-4">
-						{#each excludedPlayers as player}
-							<button
-								class={`rounded-lg px-4 py-2 ${
-									selectedRonPlayer === player
-										? 'bg-green-500 text-white'
-										: 'bg-blue-500 text-white hover:bg-blue-600'
-								}`}
-								on:click={() => (selectedRonPlayer = player)}
-							>
-								{playersList[player]}
-							</button>
-						{/each}
-					</div>
-					<label class="mb-4 block">
-						<span class="text-gray-700">점수</span>
-						<input
-							type="number"
-							class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-							bind:value={ronScore}
-						/>
-					</label>
-				{/if}
-
-				<!-- 쯔모 방식 -->
-				{#if mode === '쯔모'}
-					<h3 class="text-md mb-2 font-semibold">오야 선택</h3>
-					<div class="mb-4 flex space-x-4">
-						{#each Object.keys($scores) as position}
-							<button
-								class={`rounded-lg px-4 py-2 ${
-									selectedParent === position
-										? 'bg-green-500 text-white'
-										: 'bg-blue-500 text-white hover:bg-blue-600'
-								}`}
-								on:click={() => (selectedParent = position as Position)}
-							>
-								{playersList[position as Position]}
-							</button>
-						{/each}
-					</div>
-					<!-- 분기 처리 -->
-					{#if selectedPlayer === selectedParent}
-						<label class="mb-4 block">
-							<span class="text-gray-700">점수 (올)</span>
-							<input
-								type="number"
-								class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								bind:value={parentScore}
-							/>
-						</label>
-					{:else}
-						<label class="mb-4 block">
-							<span class="text-gray-700">점수 (오야)</span>
-							<input
-								type="number"
-								class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								bind:value={parentScore}
-							/>
-						</label>
-						<label class="mb-4 block">
-							<span class="text-gray-700">점수 (코)</span>
-							<input
-								type="number"
-								class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-								bind:value={childScore}
-							/>
-						</label>
-					{/if}
-				{/if}
-
-				<!-- 확인 버튼 -->
-				<div class="flex justify-end space-x-4">
-					<button
-						class="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600"
-						on:click={closeModal}
-					>
-						취소
-					</button>
-					<button
-						class="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
-						on:click={updateScores}
-					>
-						확인
-					</button>
-				</div>
-			</div>
-		</div>
-	{/if}
-</main>
+  </main>
+  
