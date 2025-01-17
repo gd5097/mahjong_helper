@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { players } from '../../lib/stores/players';
-	import { scores, potScore, richPlayers } from '../../lib/stores/scores';
+	import { scores, potScore } from '../../lib/stores/scores';
 	import ScoreBoard from '../../lib/components/ScoreBoard.svelte';
 	import WinModal from '../../lib/components/WinModal.svelte';
-	import RichModal from '../../lib/components/RichModal.svelte';
-	import TenpaiModal from '$lib/components/TenpaiModal.svelte';
+	import TenpaiModal from '../../lib/components/TenpaiModal.svelte';
+	import RichManager from '../../lib/components/RichManager.svelte';
 	import type { Position } from '../../lib/stores/scores';
   
 	let winModalOpen = false;
-	let richModalOpen = false;
 	let tenpaiModalOpen = false;
 	let selectedPlayer: Position | null = null;
   
@@ -38,18 +37,10 @@
 	  selectedParent = null;
 	}
   
-	function openRichModal() {
-	  richModalOpen = true;
-	}
-  
-	function closeRichModal() {
-	  richModalOpen = false;
-	}
-
 	function openTenpaiModal() {
 	  tenpaiModalOpen = true;
 	}
-
+  
 	function closeTenpaiModal() {
 	  tenpaiModalOpen = false;
 	}
@@ -61,18 +52,13 @@
 	<!-- 점수판 컴포넌트 -->
 	<ScoreBoard playersList={$players} />
   
-	<!-- 공탁 및 리치 정보 -->
+	<!-- 공탁 정보 -->
 	<div class="mt-6 mb-4 flex flex-col items-center">
 	  <p class="text-lg font-semibold">공탁: {$potScore}점</p>
-	  <p class="text-lg font-semibold">
-		리치:
-		{#each $richPlayers as player}
-		  <span class="text-blue-500 font-bold">{$players[player]}</span>
-		{/each}
-	  </p>
 	</div>
   
-	
+	<!-- 리치 관리 컴포넌트 -->
+	<RichManager />
   
 	<!-- 화료 버튼 -->
 	<h2 class="mt-6 mb-4 text-lg font-bold">화료</h2>
@@ -104,14 +90,14 @@
   
 	<!-- 유국 버튼 -->
 	<div class="mt-4">
-		<button
-		  class="rounded-lg bg-yellow-500 px-4 py-2 text-white hover:bg-yellow-600"
-		  on:click={openTenpaiModal}
-		>
-		  유국
-		</button>
-	  </div>
-
+	  <button
+		class="rounded-lg bg-yellow-500 px-4 py-2 text-white hover:bg-yellow-600"
+		on:click={openTenpaiModal}
+	  >
+		유국
+	  </button>
+	</div>
+  
 	<!-- 유국 모달 -->
 	{#if tenpaiModalOpen}
 	  <TenpaiModal playersList={$players} closeModal={closeTenpaiModal} />

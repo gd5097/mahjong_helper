@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { scores } from '../stores/scores';
+    import { scores, richPlayers } from '../stores/scores';
     import type { Position } from '../stores/scores';
   
     export let playersList: Record<Position, string>;
@@ -10,7 +10,11 @@
       scores.update((currentScores) => {
         const numTenpai = tenpaiPlayers.length;
   
-        if (numTenpai === 0 || numTenpai === 4) return currentScores;
+        if (numTenpai === 0 || numTenpai === 4) {
+          // 텐파이가 0명 또는 4명인 경우 점수 변화 없음
+          console.log('유국 정보만 기록됨');
+          return currentScores;
+        }
   
         const tenpaiPoints = numTenpai === 1 ? 3000 : numTenpai === 2 ? 1500 : 1000;
         const nonTenpaiPoints = numTenpai === 1 ? 1000 : numTenpai === 2 ? 1500 : 3000;
@@ -18,14 +22,20 @@
         Object.keys(currentScores).forEach((key) => {
           const positionKey = key as Position;
           if (tenpaiPlayers.includes(positionKey)) {
+            // 텐파이 점수 증가
             currentScores[positionKey] += tenpaiPoints;
           } else {
+            // 비텐파이 점수 감소
             currentScores[positionKey] -= nonTenpaiPoints;
           }
         });
   
         return currentScores;
       });
+  
+      // 유국 시 리치 상태 초기화, 공탁 점수는 그대로 유지
+      richPlayers.set([]);
+  
       closeModal();
     }
   </script>
@@ -33,6 +43,8 @@
   <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
     <div class="w-full max-w-lg rounded-lg bg-white p-8 shadow-md">
       <h2 class="mb-4 text-lg font-bold">유국 정보 입력</h2>
+  
+      <!-- 텐파이 선택 -->
       <h3 class="text-md mb-2 font-semibold">텐파이</h3>
       <div class="mb-4 flex space-x-4">
         {#each Object.keys(playersList) as position}
@@ -45,8 +57,10 @@
             on:click={() => {
               const pos = position as Position;
               if (tenpaiPlayers.includes(pos)) {
+                // 텐파이 해제
                 tenpaiPlayers = tenpaiPlayers.filter((p) => p !== pos);
               } else {
+                // 텐파이 추가
                 tenpaiPlayers = [...tenpaiPlayers, pos];
               }
             }}
@@ -55,11 +69,19 @@
           </button>
         {/each}
       </div>
+  
+      <!-- 취소 및 확인 버튼 -->
       <div class="flex justify-end space-x-4">
-        <button class="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600" on:click={closeModal}>
+        <button
+          class="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+          on:click={closeModal}
+        >
           취소
         </button>
-        <button class="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600" on:click={updateTenpaiScores}>
+        <button
+          class="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+          on:click={updateTenpaiScores}
+        >
           확인
         </button>
       </div>
