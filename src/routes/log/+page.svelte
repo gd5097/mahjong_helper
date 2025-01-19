@@ -6,12 +6,14 @@
 	import TenpaiModal from '../../lib/components/TenpaiModal.svelte';
 	import RichManager from '../../lib/components/RichManager.svelte';
 	import History from '../../lib/components/History.svelte';
+	import EndSessionModal from '../../lib/components/EndSessionModal.svelte';
 	import type { Position } from '../../lib/stores/scores';
 	
   
 	let winModalOpen = false;
 	let tenpaiModalOpen = false;
 	let selectedPlayer: Position | null = null;
+	let endSessionModalOpen = false;
   
 	// 모달에서 필요한 상태 값
 	let mode: '론' | '쯔모' | null = null;
@@ -45,6 +47,14 @@
   
 	function closeTenpaiModal() {
 	  tenpaiModalOpen = false;
+	}
+
+	function openEndSessionModal() {
+    endSessionModalOpen = true;
+	}
+
+	function closeEndSessionModal() {
+		endSessionModalOpen = false;
 	}
   </script>
   
@@ -105,7 +115,27 @@
 	  <TenpaiModal playersList={$players} closeModal={closeTenpaiModal} />
 	{/if}
 
-	<History />
+	<!-- 히스토리 컴포넌트 -->
+	<div class="mt-6 mb-4 w-full max-w-lg">
+		<History />
+	</div>
+
+	<!-- 기록 종료 버튼 -->
+	<div class="mt-6">
+		<button
+			class="rounded-lg bg-red-500 px-6 py-3 text-white hover:bg-red-600"
+			on:click={openEndSessionModal}
+		>
+			기록 종료
+		</button>
+	</div>
+
+	<!-- 기록 종료 모달 -->
+	{#if endSessionModalOpen}
+		<EndSessionModal closeModal={closeEndSessionModal} />
+	{/if}
+
+
 
   </main>
   
