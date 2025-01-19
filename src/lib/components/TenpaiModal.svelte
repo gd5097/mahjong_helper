@@ -1,5 +1,6 @@
 <script lang="ts">
     import { scores, richPlayers } from '../stores/scores';
+    import { history } from '../stores/history';
     import type { Position } from '../stores/scores';
   
     export let playersList: Record<Position, string>;
@@ -11,8 +12,14 @@
         const numTenpai = tenpaiPlayers.length;
   
         if (numTenpai === 0 || numTenpai === 4) {
-          // 텐파이가 0명 또는 4명인 경우 점수 변화 없음
-          console.log('유국 정보만 기록됨');
+          history.update((currentHistory) => [
+            {
+              type: '유국',
+              message: `${numTenpai === 0 ? '텐파이 없음' : '4명 텐파이'}로 유국됨.`,
+              timestamp: Date.now(),
+            },
+            ...currentHistory,
+          ]);
           return currentScores;
         }
   
@@ -29,6 +36,16 @@
             currentScores[positionKey] -= nonTenpaiPoints;
           }
         });
+
+        // 유국 기록 추가
+        history.update((currentHistory) => [
+          {
+            type: '유국',
+            message: `${tenpaiPlayers.map((pos) => playersList[pos]).join(', ')}으로 총 ${numTenpai}명 텐파이`,
+            timestamp: Date.now(),
+          },
+          ...currentHistory,
+        ]);
   
         return currentScores;
       });

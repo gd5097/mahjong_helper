@@ -1,5 +1,6 @@
 <script lang="ts">
   import { scores, potScore, richPlayers } from '../stores/scores';
+  import { history } from '../stores/history';
   import type { Position } from '../stores/scores';
 
   export let playersList: Record<Position, string>;
@@ -20,7 +21,16 @@
       const childPoints = Number(childScore) || 0;
 
       if (mode === '론' && selectedRonPlayer && selectedPlayer) {
-        // 론: 방총자 점수 차감, 화료한 사람 점수 증가
+        // 론 기록 추가
+        history.update((currentHistory) => [
+          {
+            type: '론',
+            message: `${playersList[selectedPlayer]}이(가) ${playersList[selectedRonPlayer!]}을(를) ${ronPoints}점으로 쏨.`,
+            timestamp: Date.now(),
+          },
+          ...currentHistory,
+        ]);
+
         currentScores[selectedRonPlayer] -= ronPoints;
         currentScores[selectedPlayer] += ronPoints + $potScore;
 
@@ -30,6 +40,16 @@
       } else if (mode === '쯔모' && selectedPlayer) {
         if (selectedPlayer === selectedParent) {
           const totalPoints = parentPoints * 3;
+          // 쯔모 (본인이 오야)
+          history.update((currentHistory) => [
+            {
+              type: '쯔모',
+              message: `${playersList[selectedPlayer]}이(가) 쯔모로 ${totalPoints}(올)`,
+              timestamp: Date.now(),
+            },
+            ...currentHistory,
+          ]);
+
           Object.keys(currentScores).forEach((key) => {
             const positionKey = key as Position;
             if (positionKey === selectedPlayer) {
@@ -43,6 +63,15 @@
           potScore.set(0);
           richPlayers.set([]);
         } else if (selectedParent) {
+          history.update((currentHistory) => [
+            {
+              type: '쯔모',
+              message: `${playersList[selectedPlayer]}이(가) 쯔모로 오야에게 ${parentPoints}, 코에게 ${childPoints}`,
+              timestamp: Date.now(),
+            },
+            ...currentHistory,
+          ]);
+
           Object.keys(currentScores).forEach((key) => {
             const positionKey = key as Position;
             if (positionKey === selectedParent) {

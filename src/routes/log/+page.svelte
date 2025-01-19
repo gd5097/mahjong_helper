@@ -5,7 +5,9 @@
 	import WinModal from '../../lib/components/WinModal.svelte';
 	import TenpaiModal from '../../lib/components/TenpaiModal.svelte';
 	import RichManager from '../../lib/components/RichManager.svelte';
+	import History from '../../lib/components/History.svelte';
 	import type { Position } from '../../lib/stores/scores';
+	
   
 	let winModalOpen = false;
 	let tenpaiModalOpen = false;
@@ -102,5 +104,8 @@
 	{#if tenpaiModalOpen}
 	  <TenpaiModal playersList={$players} closeModal={closeTenpaiModal} />
 	{/if}
+
+	<History />
+
   </main>
   
