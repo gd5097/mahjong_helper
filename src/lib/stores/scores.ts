@@ -5,12 +5,43 @@ export const initialScore = 25000;
 export type Position = 'east' | 'south' | 'west' | 'north';
 export type Scores = Record<Position, number>;
 
-export const scores = writable<Scores>({
-  east: initialScore,
-  south: initialScore,
-  west: initialScore,
-  north: initialScore,
+function getStoredData<T>(key: string, defaultValue: T): T {
+  if (typeof window !== 'undefined') {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : defaultValue;
+  }
+  return defaultValue;
+}
+
+export const scores = writable<Scores>(
+  getStoredData('scores', {
+    east: initialScore,
+    south: initialScore,
+    west: initialScore,
+    north: initialScore,
+  })
+);
+
+export const potScore = writable<number>(getStoredData('potScore', 0));
+
+export const richPlayers = writable<Position[]>(
+  getStoredData('richPlayers', [])
+);
+
+scores.subscribe((value) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('scores', JSON.stringify(value));
+  }
 });
 
-export const potScore = writable(0); // 공탁 점수
-export const richPlayers = writable<Position[]>([]); // 리치 체크된 플레이어 목록
+potScore.subscribe((value) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('potScore', JSON.stringify(value));
+  }
+});
+
+richPlayers.subscribe((value) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('richPlayers', JSON.stringify(value));
+  }
+});
